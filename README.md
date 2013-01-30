@@ -1,3 +1,18 @@
+## Important note about the fork
+
+This is a *frozen* customized fork of apenwarr/redo.
+
+Main purpose of the fork is to track file states for redo-ifchanged by mtime
+(instead of "ctime || mtime || inode || size"), so that I can run some local
+preprocessing before/after compilation without redo counting that as meaningful
+changes.
+
+Such tweak is probably unnecessary for most people (and upstream) and you'll be
+better off using original version (or a more advanced version of it -
+e.g. [mildred/redo](https://github.com/mildred/redo) - as Avery seem to be busy
+elsewhere lately).
+
+
 # redo: a top-down software build system
 
 `redo` is a competitor to the long-lived, but sadly imperfect, `make`
@@ -87,7 +102,7 @@ Create a file called myprog.do:
 	DEPS="a.o b.o"
 	redo-ifchange $DEPS
 	gcc -o $3 $DEPS
-	
+
 Of course, you'll also have to create `a.c` and `b.c`, the C language
 source files that you want to build to create your application.
 
@@ -95,20 +110,20 @@ In a.c:
 
 	#include <stdio.h>
 	#include "b.h"
-	
+
 	int main() { printf(bstr); }
-	
+
 In b.h:
 
 	extern char *bstr;
-	
+
 In b.c:
 	char *bstr = "hello, world!\n";
 
 Now you simply run:
 
 	$ redo myprog
-	
+
 And it says:
 
 	redo  myprog
@@ -119,7 +134,7 @@ Now try this:
 
 	$ touch b.h
 	$ redo myprog
-	
+
 Sure enough, it says:
 
 	redo  myprog
@@ -231,7 +246,7 @@ Also, it's surprisingly useful to have each build script in its own file;
 that way, you can declare a dependency on just that one build script instead
 of the entire Makefile, and you won't have to rebuild everything just
 because of a one-line Makefile change.  (Some build tools avoid that same
-problem by tracking which variables and commands were used to do the build. 
+problem by tracking which variables and commands were used to do the build.
 But that's more complex, more error prone, and slower.)
 
 See djb's [Target files depend on build scripts](http://cr.yp.to/redo/honest-script.html)
@@ -245,14 +260,14 @@ default.do that looks something like this:
 		myprog)  ...link a program... ;;
 		*) echo "no rule to build '$1'" >&2; exit 1 ;;
 	esac
-	
+
 Basically, default.do is the equivalent of a central
 Makefile in make.  As of recent versions of redo, you can
 use either a single toplevel default.do (which catches
 requests for files anywhere in the project that don't have
 their own .do files) or one per directory, or any
 combination of the above.  And you can put some of your
-targets in default.do and some of them in their own files. 
+targets in default.do and some of them in their own files.
 Lay it out in whatever way makes sense to you.
 
 One more thing: if you put all your build rules in a single
@@ -328,7 +343,7 @@ to stdout instead of $3 if you want.)
 
 For example, you could compile a .c file into a .o file
 like this, from a script named `default.o.do`:
-	
+
 	redo-ifchange $2.c
 	gcc -o $3 -c $2.c
 
@@ -356,7 +371,7 @@ change this behaviour someday since it's such a terrible
 idea for .do scripts to read from stdin.
 
 As with make, stderr is also not redirected.  You can use
-it to print status messages as your build proceeds. 
+it to print status messages as your build proceeds.
 (Eventually, we might want to capture stderr so it's easier
 to look at the results of parallel builds, but this is
 tricky to do in a user-friendly way.)
@@ -380,7 +395,7 @@ does, especially make, and it's very easy to make a
 mistake.  For example, if you write in your script:
 
 	echo "Hello world"
-	
+
 it will go to the target file rather than to the screen.
 
 A more common mistake is to run a program that writes to
@@ -401,7 +416,7 @@ from a list:
 
 	redo-ifchange filelist
 	grep ^src/ filelist
-	
+
 redo's simplicity is an attempt to capture the "Zen of
 Unix," which has a lot to do with concepts like pipelines
 and stdout.  Why should every program have to implement its
@@ -417,7 +432,7 @@ stdout!  Fix your programs!), then just add this line to
 the top of your .do script:
 
 	exec >&2
-	
+
 That will redirect your stdout to stderr, so it works more
 like you expect.
 
@@ -523,7 +538,7 @@ something like this:
 But it turns out that's very non-optimal.  First of all, it
 forces all your dependencies to be built in order
 (redo-ifchange doesn't return until it has finished
-building), which makes -j parallelism a lot less useful. 
+building), which makes -j parallelism a lot less useful.
 And secondly, it forks and execs redo-ifchange over and
 over, which can waste CPU time unnecessarily.
 
@@ -533,7 +548,7 @@ A better way is something like this:
 		echo ${d%.c}.o
 	done |
 	xargs redo-ifchange
-	
+
 That only runs redo-ifchange once (or maybe a few times, if
 there are really a *lot* of dependencies and xargs has to
 split it up), which saves fork/exec time and allows for
@@ -543,13 +558,13 @@ parallelism.
 # If a target didn't change, how do I prevent dependents from being rebuilt?
 
 For example, running ./configure creates a bunch of files including
-config.h, and config.h might or might not change from one run to the next. 
+config.h, and config.h might or might not change from one run to the next.
 We don't want to rebuild everything that depends on config.h if config.h is
 identical.
 
 With `make`, which makes build decisions based on timestamps, you would
 simply have the ./configure script write to config.h.new, then only
-overwrite config.h with that if the two files are different. 
+overwrite config.h with that if the two files are different.
 However, that's a bit tedious.
 
 With `redo`, there's an easier way.  You can have a
@@ -559,7 +574,7 @@ config.do script that looks like this:
 	./autogen.sh
 	./configure
 	cat config.h configure Makefile | redo-stamp
-	
+
 Now any of your other .do files can depend on a target called
 `config`.  `config` gets rebuilt automatically if any of
 your autoconf input files are changed (or if someone does
@@ -606,7 +621,7 @@ automatically, however:
   know you absolutely want that.  (With timestamps, you can
   just `touch filename` to rebuild everything that depends
   on `filename`.)
-  
+
 - Targets that are just used for aggregation (ie. they
   don't produce any output of their own) would always have
   the same checksum - the checksum of a zero-byte file -
@@ -614,26 +629,26 @@ automatically, however:
 
 - Calculating checksums for every output file adds time to
   the build, even if you don't need that feature.
-  
+
 - Building stuff unnecessarily and then stamping it is
   much slower than just not building it in the first place,
   so for *almost* every use of redo-stamp, it's not the
   right solution anyway.
-  
+
 - To steal a line from the Zen of Python: explicit is
   better than implicit.  Making people think about when
   they're using the stamp feature - knowing that it's slow
   and a little annoying to do - will help people design
   better build scripts that depend on this feature as
   little as possible.
-  
+
 - djb's (as yet unreleased) version of redo doesn't
   implement checksums, so doing that would produce an
   incompatible implementation.  With redo-stamp and
   redo-always being separate programs, you can simply
   choose not to use them if you want to keep maximum
   compatibility for the future.
-  
+
 - Bonus: the redo-stamp algorithm is interchangeable.  You
   don't have to stamp the target file or the source files
   or anything in particular; you can stamp any data you
@@ -643,7 +658,7 @@ automatically, however:
   would always have been needed, and then we'd have to
   explain when to use the explicit one and when to use the
   implicit one.
-  
+
 Thus, we made the decision to only use checksums for
 targets that explicitly call `redo-stamp` (see previous
 question).
@@ -676,21 +691,21 @@ The reasons I like this arrangement come down to semantics:
 - "make target" implies that if target exists, you're done;
   conversely, "redo target" in English implies you really
   want to *redo* it, not just sit around.
-  
+
 - If this weren't the rule, `redo` and `redo-ifchange`
   would mean the same thing, which seems rather confusing.
-  
+
 - If `redo` could refuse to run a .do script, you would
   have no easy one-line way to force a particular target to
   be rebuilt.  You'd have to remove the target and *then*
   redo it, which is more typing.  On the other hand, nobody
   actually types "redo foo.o" if they honestly think foo.o
   doesn't need rebuilding.
-  
+
 - For "contentless" targets like "test" or "clean", it would
   be extremely confusing if they refused to run just
   because they ran successfully last time.
-  
+
 In make, things get complicated because it doesn't
 differentiate between these two modes.  Makefile rules
 with no dependencies run every time, *unless* the target
@@ -753,7 +768,7 @@ where foo.class is supposed to come from?
 So we haven't thought about this enough yet.
 
 Note that it's *okay* for a .do file to produce targets
-other than the advertised one; you just have to be careful. 
+other than the advertised one; you just have to be careful.
 You could have a default.javac.do that runs 'javac
 $2.java', and then have your program depend on a bunch of .javac
 files.  Just be careful not to depend on the .class files
@@ -798,7 +813,7 @@ smallest, simplest target file, making it slow.
 `redo` deftly dodges both the problems of recursive make
 and the problems of non-recursive make.  First of all,
 dependency information is shared through a global persistent `.redo`
-database, which is accessed by all your `redo` instances at once. 
+database, which is accessed by all your `redo` instances at once.
 Dependencies created or checked by one instance can be immediately used by
 another instance.  And there's locking to prevent two instances from
 building the same target at the same time.  So you get all the "global
@@ -809,7 +824,7 @@ everything linearly.
 
 Also, every `.do` script is entirely hygienic and traceable; `redo`
 discourages the use of global environment variables, suggesting that you put
-settings into files (which can have timestamps and dependencies) instead. 
+settings into files (which can have timestamps and dependencies) instead.
 So you also get all the hygiene and modularity advantages of recursive make.
 
 By the way, you can trace any `redo` build process just by reading the `.do`
@@ -838,7 +853,7 @@ actually much better than environment variables, because it runs faster
 For example, djb often uses a computer-generated script called `compile` for
 compiling a .c file into a .o file.  To generate the `compile` script, we
 create a file called `compile.do`:
-	
+
 	redo-ifchange config.sh
 	. ./config.sh
 	echo "gcc -c -o \$3 $2.c $CFLAGS" >$3
@@ -891,7 +906,7 @@ in make:
 
 	%.o: %.c
 		gcc ...
-		
+
 Then it has to do all the same checks.  Except make has even *more* implicit
 rules than that, so it ends up trying and discarding lots of possibilities
 before it actually builds your program.  Is there a %.s?  A
@@ -926,23 +941,23 @@ When running any .do file, `redo` makes sure its current directory is set to
 the directory where the .do file is located.  That means you can do this:
 
 	redo ../utils/foo.o
-	
+
 And it will work exactly like this:
 
 	cd ../utils
 	redo foo.o
-	
+
 In make, if you run
 
 	make ../utils/foo.o
-	
+
 it means to look in ./Makefile for a rule called
 ../utils/foo.o... and it probably doesn't have such a
 rule.  On the other hand, if you run
 
 	cd ../utils
 	make foo.o
-	
+
 it means to look in ../utils/Makefile and look for a rule
 called foo.o.  And that might do something totally
 different!  redo combines these two forms and does
@@ -1031,7 +1046,7 @@ fine if the headers, themselves, don't need to be generated first.  But if
 you do
 
 	redo foo.o
-	
+
 There's no way for redo to *automatically* know that compiling foo.c
 into foo.o depends on first generating config.h.
 
@@ -1040,7 +1055,7 @@ thing to do is probably to just add a line like this to
 your default.o.do:
 
 	redo-ifchange config.h
-	
+
 Sometimes a specific solution is much easier than a general
 one.
 
@@ -1059,7 +1074,7 @@ that header.
 # Why doesn't redo by default print the commands as they are run?
 
 make prints the commands it runs as it runs them.  redo doesn't, although
-you can get this behaviour with `redo -v` or `redo -x`. 
+you can get this behaviour with `redo -v` or `redo -x`.
 (The difference between -v and -x is the same as it is in
 sh... because we simply forward those options onward to sh
 as it runs your .do script.)
@@ -1117,7 +1132,7 @@ choose to run only that step in verbose mode:
 	+ cat c.c.c.b.b.a
 	+ ./sleep 1.1
 	redo  t/c.c.c.b.b (done)
-	
+
 
 If you're using an autobuilder or something that logs build results for
 future examination, you should probably set it to always run redo with
@@ -1207,7 +1222,7 @@ If we run it serially, it all looks good:
 	make subproj
 	make[1]: 'subproj' is up to date.
 	touch bob
-	
+
 But if we run it in parallel, life sucks:
 
 	$ rm -f subproj fred bob; make -j2 --no-print-directory
@@ -1223,14 +1238,14 @@ But if we run it in parallel, life sucks:
 	touch fred
 	make[1]: *** [subproj] Error 1
 	make: *** [bob] Error 2
-	
+
 What happened?  The sub-make that runs `subproj` ended up
 getting twice at once, because both fred and bob need to
 build it.
 
 If fred and bob had put in a *dependency* on subproj, then
 GNU make would be smart enough to only build one of them at
-a time; it can do ordering inside a single make process. 
+a time; it can do ordering inside a single make process.
 So this example is a bit contrived.  But imagine that fred
 and bob are two separate applications being built from the
 same toplevel Makefile, and they both depend on the library
@@ -1263,8 +1278,8 @@ things in parallel.  A very common problem in make is to
 have a Makefile rule that looks like this:
 
 	all: a b c
-	
-When you `make all`, it first builds a, then b, then c. 
+
+When you `make all`, it first builds a, then b, then c.
 What if c depends on b?  Well, it doesn't matter when
 you're building in serial.  But with -j3, you end up
 building a, b, and c at the same time, and the build for c
@@ -1273,13 +1288,13 @@ crashes.  You *should* have said:
 	all: a b c
 	c: b
 	b: a
-	
+
 and that would have fixed it.  But you forgot, and you
 don't find out until you build with exactly the wrong -j
 option.
 
 This mistake is easy to make in redo too.  But it does have
-a tool that helps you debug it: the --shuffle option. 
+a tool that helps you debug it: the --shuffle option.
 --shuffle takes the dependencies of each target, and builds
 them in a random order.  So you can get parallel-like
 results without actually building in parallel.
@@ -1296,7 +1311,7 @@ The most interesting method I've heard of was explained (in public, this is
 not proprietary information) by someone from Google.  Apparently, the
 Android team uses a tool that mounts your entire local filesystem on a
 remote machine using FUSE and chroots into that directory.  Then you replace
-the $SHELL variable in your copy of make with one that runs this tool. 
+the $SHELL variable in your copy of make with one that runs this tool.
 Because the remote filesystem is identical to yours, the build will
 certainly complete successfully.  After the $SHELL program exits, the changed
 files are sent back to your local machine.  Cleverly, the files on the
@@ -1334,7 +1349,7 @@ can just rewrite it.
 Yes.  Put this in your .do script:
 
 	unset MAKEFLAGS
-	
+
 The child makes will then not have access to the jobserver,
 so will build serially instead.
 
@@ -1342,7 +1357,7 @@ so will build serially instead.
 # How fast is redo compared to make?
 
 FIXME:
-The current version of redo is written in python and has not been optimized. 
+The current version of redo is written in python and has not been optimized.
 So right now, it's usually a bit slower.  Not too embarrassingly slower,
 though, and the slowness mostly only strikes when you're
 building a project from scratch.
@@ -1416,7 +1431,7 @@ redo in C.  Then it'll look like this:
 	28460 pts/2 Sl 0:00 redo-ifchange stuff...
 
 ...the way it should.
-	
+
 
 # Are there examples?
 
@@ -1452,11 +1467,11 @@ Yes, it might not look like it, but you can subscribe without having a
 Google Account.  Just send a message here:
 
 	redo-list+subscribe@googlegroups.com
-	
+
 You can also send a message directly to the mailing list
 without subscribing first.  If you reply to someone on the
 list, please leave them in the cc: list, since if they
-haven't subscribed, they won't get your reply otherwise. 
+haven't subscribed, they won't get your reply otherwise.
 Nowadays everybody uses a mailer that removes duplicates,
 so don't worry about sending the same thing to them twice.
 
